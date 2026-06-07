@@ -209,7 +209,7 @@ async function handleProposalFlow(
     firstName: string | undefined,
     proposalText: string,
     replyFn: (text: string, opts?: object) => Promise<{ message_id: number }>,
-    editFn: (messageId: number, text: string, opts?: object) => Promise<void>
+    editFn: (messageId: number, text: string, opts?: object) => Promise<unknown>
 ) {
     const loadingMsg = await replyFn('🧠 <i>Analyzing your proposal...</i>', { parse_mode: 'HTML' });
 

@@ -6,7 +6,7 @@ import { prisma } from './db';
 import { getProposalTypeBadge } from './formatters';
 import { resolveGroupFromQuery } from './groupLookup';
 
-const router = Router();
+const router: Router = Router();
 
 async function getTonBalance(address: string): Promise<number | null> {
     try {
