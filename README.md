@@ -1,5 +1,7 @@
 # StonMaker
 
+**Check it out here:** [https://ston-maker.vercel.app/](https://ston-maker.vercel.app/)
+
 **Telegram-native DAO bot on TON.** Turn any Telegram group into a mini-DAO with a shared treasury, member-gated proposals, quorum voting, and on-chain execution via a per-group smart contract.
 
 Public dashboard: search any initialized group by `@username`, invite link, group name, or chat ID.
