@@ -271,9 +271,12 @@ bot.command('add', async (ctx) => {
     await sendPrivateAddToGroupPrompt(ctx);
 });
 
-bot.on('message', async (ctx) => {
+bot.on('message', async (ctx, next) => {
     const shared = ctx.message?.chat_shared;
-    if (!shared || ctx.chat?.type !== 'private' || shared.request_id !== ADD_GROUP_REQUEST_ID) return;
+    if (!shared || ctx.chat?.type !== 'private' || shared.request_id !== ADD_GROUP_REQUEST_ID) {
+        await next();
+        return;
+    }
 
     const groupChatId = shared.chat_id;
 
