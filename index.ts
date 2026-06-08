@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Bot, GrammyError, HttpError, InlineKeyboard } from 'grammy';
+import { Bot, GrammyError, HttpError, InlineKeyboard, Keyboard } from 'grammy';
 import {
     processJoinDaoRequest,
     saveUserWallet,
@@ -28,6 +28,67 @@ import express from 'express';
 const bot = new Bot(process.env.BOT_TOKEN as string);
 const app = express();
 const botUsername = process.env.BOT_USERNAME || '';
+
+const ADD_GROUP_REQUEST_ID = 42;
+
+const NO_ADMIN_RIGHTS = {
+    is_anonymous: false,
+    can_manage_chat: false,
+    can_delete_messages: false,
+    can_manage_video_chats: false,
+    can_restrict_members: false,
+    can_promote_members: false,
+    can_change_info: false,
+    can_invite_users: false,
+    can_post_stories: false,
+    can_edit_stories: false,
+    can_delete_stories: false,
+    can_post_messages: false,
+    can_edit_messages: false,
+    can_pin_messages: false,
+};
+
+/** Minimal admin rights so Telegram prompts to add the bot when a group is selected. */
+const BOT_ADD_RIGHTS = {
+    ...NO_ADMIN_RIGHTS,
+    can_manage_chat: true,
+};
+
+const USER_PICK_GROUP_RIGHTS = {
+    ...NO_ADMIN_RIGHTS,
+    can_manage_chat: true,
+    can_invite_users: true,
+};
+
+function createSelectGroupKeyboard(): Keyboard {
+    return new Keyboard()
+        .add({
+            text: '📋 Select your group',
+            request_chat: {
+                request_id: ADD_GROUP_REQUEST_ID,
+                chat_is_channel: false,
+                bot_is_member: false,
+                user_administrator_rights: USER_PICK_GROUP_RIGHTS,
+                bot_administrator_rights: BOT_ADD_RIGHTS,
+            },
+        })
+        .resized()
+        .oneTime();
+}
+
+const GROUP_WELCOME_MESSAGE =
+    '👋 <b>StonMaker is in your group.</b>\n\n' +
+    '• Members: <code>/join_dao</code>\n' +
+    '• Treasury: <code>/treasury</code>\n' +
+    '• Proposals: <code>/propose</code> (members only)\n' +
+    '• Help: <code>/help</code>';
+
+const PRIVATE_ADD_INSTRUCTIONS =
+    '<b>Add StonMaker to your Telegram group</b>\n\n' +
+    '1. Tap <b>Select your group</b> below\n' +
+    '2. Pick the group (you must be an admin)\n' +
+    '3. Tap <b>OK</b> when Telegram asks to add StonMaker\n\n' +
+    '<i>Telegram requires these steps — websites cannot add bots to a group automatically.</i>';
 
 /** Users awaiting a voting duration reply before proposal is created */
 const pendingProposalIntents = new Map<
@@ -174,8 +235,23 @@ async function notifyProposalExecuted(notice: ExecutionNotice) {
     console.log(`📣 Posted execution notice for proposal #${notice.proposalId} in Telegram`);
 }
 
+async function sendPrivateAddToGroupPrompt(ctx: { reply: (text: string, opts?: object) => Promise<unknown> }) {
+    await ctx.reply(PRIVATE_ADD_INSTRUCTIONS, {
+        parse_mode: 'HTML',
+        reply_markup: createSelectGroupKeyboard(),
+    });
+}
+
 bot.command('start', async (ctx) => {
     if (!ctx.from) return;
+
+    if (ctx.chat.type === 'group' || ctx.chat.type === 'supergroup') {
+        await syncGroupAdmins(ctx.chat.id);
+        await syncGroupTelegramMeta(ctx.api, ctx.chat.id);
+        await ctx.reply(GROUP_WELCOME_MESSAGE, { parse_mode: 'HTML' });
+        return;
+    }
+
     if (ctx.chat.type === 'private') {
         const userId = ctx.from.id;
         await syncAdminRolesForUserInKnownGroups(userId, async (chatTgId) => {
@@ -186,19 +262,62 @@ bot.command('start', async (ctx) => {
                 return false;
             }
         });
+        await sendPrivateAddToGroupPrompt(ctx);
+    }
+});
+
+bot.command('add', async (ctx) => {
+    if (!ctx.from || ctx.chat.type !== 'private') return;
+    await sendPrivateAddToGroupPrompt(ctx);
+});
+
+bot.on('message', async (ctx) => {
+    const shared = ctx.message?.chat_shared;
+    if (!shared || ctx.chat?.type !== 'private' || shared.request_id !== ADD_GROUP_REQUEST_ID) return;
+
+    const groupChatId = shared.chat_id;
+
+    try {
+        const botMember = await ctx.api.getChatMember(groupChatId, ctx.me.id);
+        if (botMember.status === 'left' || botMember.status === 'kicked') {
+            await ctx.reply(
+                'StonMaker was not added. Tap <b>Select your group</b> again and confirm when Telegram asks to add the bot.',
+                { parse_mode: 'HTML', reply_markup: createSelectGroupKeyboard() }
+            );
+            return;
+        }
+
+        const chat = await ctx.api.getChat(groupChatId);
+        const title = 'title' in chat ? chat.title : 'your group';
+
         await ctx.reply(
-            '👋 Welcome to StonMaker! Add me to your Telegram group to turn it into a DAO.\n\nUse /help in a group to see available commands.',
-            { parse_mode: 'HTML' }
+            `✅ StonMaker is in <b>${title}</b>.\n\nOpen that group and run <code>/join_dao</code> to get started.`,
+            { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } }
         );
+    } catch (error) {
+        console.error('chat_shared handler error:', error);
+        await ctx.reply('Could not verify that group. Make sure you are an admin, then try again.', {
+            reply_markup: createSelectGroupKeyboard(),
+        });
     }
 });
 
 bot.on('my_chat_member', async (ctx) => {
-    const member = ctx.myChatMember.new_chat_member;
-    const chat = ctx.myChatMember.chat;
-    if ((chat.type === 'group' || chat.type === 'supergroup') && member.status === 'member') {
-        await syncGroupAdmins(chat.id);
-        await syncGroupTelegramMeta(ctx.api, chat.id);
+    const { new_chat_member, old_chat_member, chat } = ctx.myChatMember;
+    if (chat.type !== 'group' && chat.type !== 'supergroup') return;
+
+    const wasOutside = ['left', 'kicked'].includes(old_chat_member.status);
+    const nowInside = new_chat_member.status === 'member' || new_chat_member.status === 'administrator';
+
+    if (!wasOutside || !nowInside) return;
+
+    await syncGroupAdmins(chat.id);
+    await syncGroupTelegramMeta(ctx.api, chat.id);
+
+    try {
+        await bot.api.sendMessage(chat.id, GROUP_WELCOME_MESSAGE, { parse_mode: 'HTML' });
+    } catch (error) {
+        console.log('Could not post group welcome after bot was added:', error);
     }
 });
 
@@ -684,9 +803,14 @@ bot.catch((err: any) => {
 registerApiRoutes(app, bot);
 
 bot.start({
-    onStart: (botInfo: any) => {
+    onStart: (botInfo: { username?: string; can_join_groups?: boolean }) => {
         console.log(`🚀 StonMaker Bot (@${botInfo.username}) is running!`);
         console.log(`🔗 TON network: ${getTonNetworkLabel()}`);
+        if (botInfo.can_join_groups === false) {
+            console.error(
+                '⚠️ This bot cannot be added to groups. In @BotFather run /setjoingroups and choose Enable.'
+            );
+        }
         void syncAllKnownGroupsTelegramMeta(bot.api);
         startExecutionWorker(async (notice) => {
             try {

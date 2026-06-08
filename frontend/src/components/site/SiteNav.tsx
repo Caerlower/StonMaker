@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { StonMakerLogo } from "@/components/brand/StonMakerLogo";
-import { getTelegramBotUrl } from "@/lib/api";
+import { TelegramAddLink } from "@/components/site/TelegramAddLink";
 import { cn } from "@/lib/utils";
 import { Menu, Send } from "lucide-react";
 import {
@@ -23,16 +23,11 @@ const telegramButtonClass =
 
 function TelegramButton({ className }: { className?: string }) {
   return (
-    <a
-      href={getTelegramBotUrl()}
-      target="_blank"
-      rel="noreferrer"
-      className={cn(telegramButtonClass, className)}
-    >
+    <TelegramAddLink className={cn(telegramButtonClass, className)}>
       <Send className="size-3.5 shrink-0" />
       <span className="hidden sm:inline">Add to Telegram</span>
       <span className="sm:hidden">Telegram</span>
-    </a>
+    </TelegramAddLink>
   );
 }
 

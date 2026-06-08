@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Send, MessageCircle, Vote, Zap, Users, FileText, CheckCircle2 } from "lucide-react";
 import { FadeUp } from "@/components/site/FadeUp";
-import { getTelegramBotUrl } from "@/lib/api";
+import { TelegramAddLink } from "@/components/site/TelegramAddLink";
 
 export function Hero() {
   return (
@@ -34,15 +34,10 @@ export function Hero() {
 
         <FadeUp delay={380}>
           <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
-            <a
-              href={getTelegramBotUrl()}
-              target="_blank"
-              rel="noreferrer"
-              className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:shadow-[var(--shadow-glow)] hover:-translate-y-0.5"
-            >
+            <TelegramAddLink className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:shadow-[var(--shadow-glow)] hover:-translate-y-0.5">
               <Send className="size-4" />
               Add to Telegram
-            </a>
+            </TelegramAddLink>
             <Link
               to="/dashboard"
               className="group inline-flex items-center gap-2 text-sm font-medium text-foreground/90 hover:text-foreground transition-colors"

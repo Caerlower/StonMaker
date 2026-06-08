@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FadeUp } from "@/components/site/FadeUp";
+import { TelegramAddLink } from "@/components/site/TelegramAddLink";
 import { Send, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/how-it-works")({
@@ -65,15 +66,10 @@ function HowItWorksPage() {
               Add the bot. Approve your members. Run your first vote in under five minutes.
             </p>
             <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
-              <a
-                href="https://t.me/StonMakerBot"
-                target="_blank"
-                rel="noreferrer"
-                className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:shadow-[var(--shadow-glow)] hover:-translate-y-0.5"
-              >
+              <TelegramAddLink className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:shadow-[var(--shadow-glow)] hover:-translate-y-0.5">
                 <Send className="size-4" />
                 Add to Telegram
-              </a>
+              </TelegramAddLink>
               <a href="/dashboard" className="group inline-flex items-center gap-2 text-sm font-medium text-foreground/90 hover:text-foreground transition-colors">
                 See a live treasury
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />

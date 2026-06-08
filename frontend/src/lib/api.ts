@@ -104,8 +104,8 @@ export function fetchProposals(groupQuery: string) {
 }
 
 export function getTelegramBotUrl(): string {
-  const username = import.meta.env.VITE_BOT_USERNAME || 'StonMakerBot';
-  return `https://t.me/${username}?startgroup=true`;
+  const username = (import.meta.env.VITE_BOT_USERNAME || 'StonMakerBot').replace(/^@/, '');
+  return `https://t.me/${username}?start=add`;
 }
 
 export function formatExpiresIn(expiresAt: string | null): string {
